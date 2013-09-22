@@ -16,21 +16,20 @@
 --License along with this library; if not, write to the Free Software
 --Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ---
- 
+
 vendor.traversable_node_types = {
-	"default:chest", 
+	"default:chest",
 	"default:chest_locked",
-	"vendor:vendor", 
+	"vendor:vendor",
 	"vendor:depositor"
 }
 
 vendor.formspec = function(pos, player)
 	local meta = minetest.env:get_meta(pos)
-	local meta = minetest.env:get_meta(pos)
 	local node = minetest.env:get_node(pos)
 	local description = minetest.registered_nodes[node.name].description;
 	local buysell =  "sell"
-	if ( node.name == "vendor:depositor" ) then	
+	if ( node.name == "vendor:depositor" ) then
 		buysell = "buy"
 	end
 
@@ -86,7 +85,7 @@ vendor.on_receive_fields = function(pos, formname, fields, sender)
 	local number = tonumber(fields.number)
 	local cost = tonumber(fields.cost)
 	local limit = tonumber(fields.limit)
-	
+
 	if ( number == nil or number < 1 or number > 99) then
 		minetest.chat_send_player(owner, "vendor: Invalid count.  You must enter a count between 1 and 99.")
 		vendor.disable(pos, "Misconfigured")
@@ -128,7 +127,7 @@ vendor.on_receive_fields = function(pos, formname, fields, sender)
 	meta:set_string("formspec", vendor.formspec(pos, sender))
 
 	local buysell = "selling"
-	if ( node.name == "vendor:depositor" ) then	
+	if ( node.name == "vendor:depositor" ) then
 		buysell = "buying"
 	end
 	minetest.chat_send_player(owner, "vendor: " .. description .. " is now " .. buysell .. " " .. number .. " " .. vendor.get_item_desc(itemname) .. " for " .. cost .. money.currency_name)
@@ -137,7 +136,7 @@ vendor.on_receive_fields = function(pos, formname, fields, sender)
 end
 
 
-vendor.disable = function(pos, desc) 
+vendor.disable = function(pos, desc)
 	vendor.sound_deactivate(pos)
 	local meta = minetest.env:get_meta(pos)
 	local owner = meta:get_string("owner")
@@ -149,11 +148,11 @@ vendor.disable = function(pos, desc)
 	meta:set_int("enabled", 0)
 end
 
-vendor.refresh = function(pos, err) 
+vendor.refresh = function(pos, err)
 	local meta = minetest.env:get_meta(pos)
 	local node = minetest.env:get_node_or_nil(pos)
 	if ( node == nil ) then
-		return 
+		return
 	end
 
 	if ( meta:get_int("enabled") ~= 1 ) then
@@ -174,19 +173,19 @@ vendor.refresh = function(pos, err)
 
 	if ( err == nil ) then
 		err = ""
-	else 
+	else
 		err = err .. ": "
 	end
 
 	local per_text = ""
-	if ( number > 1 ) then 
+	if ( number > 1 ) then
 		local per = math.floor((cost * 100)/number + 0.5) / 100
 		per_text = " ("..per..money.currency_name.." each)"
 	end
 
-	if ( node.name == "vendor:vendor" ) then	
+	if ( node.name == "vendor:vendor" ) then
 		infotext = err .. owner .. " Sells " .. number .. " " .. vendor.get_item_desc(itemtype) .. " for " .. cost .. money.currency_name .. limit_text .. per_text
-	else 
+	else
 		infotext = err .. owner .. " Buys " .. number .. " " .. vendor.get_item_desc(itemtype) .. " for " .. cost .. money.currency_name .. limit_text .. per_text
 	end
 
@@ -195,7 +194,7 @@ vendor.refresh = function(pos, err)
 	end
 end
 
-vendor.sound_activate = function(pos) 
+vendor.sound_activate = function(pos)
 	minetest.sound_play("vendor_activate", {pos = pos, gain = 1.0, max_hear_distance = 10,})
 end
 
@@ -211,7 +210,7 @@ vendor.sound_deposit = function(pos)
 	minetest.sound_play("vendor_deposit", {pos = pos, gain = 1.0, max_hear_distance = 10,})
 end
 
-vendor.sound_vend = function(pos) 
+vendor.sound_vend = function(pos)
 	minetest.sound_play("vendor_vend", {pos = pos, gain = 1.0, max_hear_distance = 10,})
 end
 
@@ -219,11 +218,11 @@ vendor.on_punch = function(pos, node, player)
 	local meta = minetest.env:get_meta(pos)
 	local node = minetest.env:get_node_or_nil(pos)
 	if ( node == nil ) then
-		return 
+		return
 	end
 
 	local vending = false
-	if ( node.name == "vendor:vendor" ) then	
+	if ( node.name == "vendor:vendor" ) then
 		vending = true
 	elseif ( node.name == "vendor:depositor" ) then
 		vending = false
@@ -243,14 +242,14 @@ vendor.on_punch = function(pos, node, player)
 	if not money.has_credit(player_name) then
 		minetest.chat_send_player(player_name, "vendor: You don't have credit ('money' privilege).")
 		vendor.sound_error(pos)
-		return 
-	end 
-	
+		return
+	end
+
 	if not money.has_credit(owner) then
 		vendor.refresh(pos, "Account Suspended")
 		vendor.sound_error(pos)
-		return 
-	end 
+		return
+	end
 
 	if ( enabled ~= 1 ) then
 		vendor.sound_error(pos)
@@ -272,7 +271,7 @@ vendor.on_punch = function(pos, node, player)
 	local from_inv = nil
 	local to_account = nil
 	local from_account = nil
-	
+
 	local player_inv = player:get_inventory()
 
 	if ( vending ) then
@@ -286,7 +285,7 @@ vendor.on_punch = function(pos, node, player)
 		to_account = player_name
 		from_account = owner
 	end
-	
+
 	if not from_inv:contains_item("main", itemtype .. " " .. number ) then
 		minetest.chat_send_player(player_name, "vendor: Not enough (or no) items found to sell")
 		return
@@ -294,7 +293,7 @@ vendor.on_punch = function(pos, node, player)
 	if not to_inv:room_for_item("main", itemtype .. " " .. number ) then
 		minetest.chat_send_player(player_name, "vendor: Not enough room to purchase items")
 		vendor.sound_error(pos)
-		return 
+		return
 	end
 	local err = money.transfer(from_account, to_account, cost)
 	if ( err ~= nil ) then
@@ -327,11 +326,11 @@ vendor.on_punch = function(pos, node, player)
 		else
 			vendor.refresh(pos)
 		end
-	end	
+	end
 end
 
 
-vendor.get_item_desc = function(nodetype) 
+vendor.get_item_desc = function(nodetype)
 	local itemdef = minetest.registered_items[nodetype]
 	if ( itemdef ~= nil ) then
 		return itemdef["description"] or "Unknown"
@@ -341,35 +340,37 @@ vendor.get_item_desc = function(nodetype)
 end
 
 
-vendor.is_traversable = function(pos) 
-	local node = minetest.env:get_node_or_nil(pos)
-	if ( node == nil ) then
-		return false
-	end
-	for i=1,#vendor.traversable_node_types do
-		if node.name == vendor.traversable_node_types[i] then
-			return true
-		end
-	end
-	return false
+vendor.is_traversable = function(pos, name)
+    local node = minetest.env:get_node_or_nil(pos)
+    if ( node == nil ) then
+        return false
+    end
+    for i=1,#vendor.traversable_node_types do
+        if (node.name == vendor.traversable_node_types[i] and node.name ~= name) then
+            return true
+        end
+    end
+    return false
 end
 
-vendor.neighboring_nodes = function(pos) 
-	local check = {{x=pos.x+1, y=pos.y, z=pos.z},
-		{x=pos.x-1, y=pos.y, z=pos.z},
-		{x=pos.x, y=pos.y+1, z=pos.z},
-		{x=pos.x, y=pos.y-1, z=pos.z},
-		{x=pos.x, y=pos.y, z=pos.z+1},
-		{x=pos.x, y=pos.y, z=pos.z-1}}
-	local trav = {}
-	for i=1,#check do
-		if vendor.is_traversable(check[i]) then
-			trav[#trav+1] = check[i]
-		end
-	end
-	return trav		
+vendor.neighboring_nodes = function(pos)
+    local node = minetest.env:get_node_or_nil(pos)
+    local check = {{x=pos.x+1, y=pos.y, z=pos.z},
+        {x=pos.x-1, y=pos.y, z=pos.z},
+        {x=pos.x, y=pos.y+1, z=pos.z},
+        {x=pos.x, y=pos.y-1, z=pos.z},
+        {x=pos.x, y=pos.y, z=pos.z+1},
+        {x=pos.x, y=pos.y, z=pos.z-1}}
+    local trav = {}
+    for i=1,#check do
+        if vendor.is_traversable(check[i], node.name) then
+            trav[#trav+1] = check[i]
+        end
+    end
+    return trav
 end
-vendor.find_connected_chest_inv = function(owner, pos, nodename, amount, removing) 
+
+vendor.find_connected_chest_inv = function(owner, pos, nodename, amount, removing)
 	local nodes = vendor.neighboring_nodes(pos)
 
 	if ( #nodes < 1 or  #nodes > 2 ) then
@@ -400,7 +401,7 @@ vendor.find_connected_chest_inv = function(owner, pos, nodename, amount, removin
 			chest_pos = vendor.find_chest_inv(owner, pos, -dx, -dy, -dz, nodename, amount, removing)
 		end
 		return chest_pos
-	else 
+	else
 		local dx = first.x - pos.x
 		local dy = first.y - pos.y
 		local dz = first.z - pos.z
@@ -439,5 +440,5 @@ vendor.find_chest_inv = function(owner, pos, dx, dy, dz, nodename, amount, remov
 
 	return vendor.find_chest_inv(owner, pos, dx, dy, dz, nodename, amount, removing)
 end
-		
+
 

@@ -1,5 +1,5 @@
 ---
---vendor 1.01
+--vendor 1.03
 --Copyright (C) 2012 Bad_Command
 --
 --This library is free software; you can redistribute it and/or
@@ -18,9 +18,12 @@
 ---
 
 vendor = {}
-vendor.version = 1.02
+vendor.version = 1.03
 
 dofile(minetest.get_modpath("vendor") .. "/vendor.lua")
+if minetest.get_modpath( 'mesecons' ) then
+	dofile( minetest.get_modpath( 'vendor' ) .. '/mese_vendor.lua' )
+end
 
 minetest.register_node("vendor:vendor", {
 	description = "Vending Machine",
@@ -67,5 +70,3 @@ minetest.register_craft({
                 {'default:wood', 'default:wood', 'default:wood'},
         }
 })
-
-

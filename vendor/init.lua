@@ -1,5 +1,5 @@
 ---
---vendor 1.03
+--vendor 1.04
 --Copyright (C) 2012 Bad_Command
 --
 --This library is free software; you can redistribute it and/or
@@ -18,9 +18,18 @@
 ---
 
 vendor = {}
-vendor.version = 1.03
+vendor.version = 1.04
+vendor.tax = 0.01
 
-dofile(minetest.get_modpath("vendor") .. "/vendor.lua")
+--[[
+Set the next var to false if logging should be disabled. If
+you only comment out the dofile() statement, the mod might
+crash due to a nil call to a non-existent routine
+]]
+vendor.VENDOR_USE_LOGGING = true
+
+dofile( minetest.get_modpath( 'vendor' ) .. '/vendor.lua' )
+dofile( minetest.get_modpath( 'vendor' ) ..'/log.lua' )
 if minetest.get_modpath( 'mesecons' ) then
 	dofile( minetest.get_modpath( 'vendor' ) .. '/mese_vendor.lua' )
 end

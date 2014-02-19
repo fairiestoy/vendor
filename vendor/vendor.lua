@@ -21,10 +21,21 @@ vendor.traversable_node_types = {
 	"default:chest",
 	"default:chest_locked",
 	"vendor:vendor",
-	"vendor:depositor"
+	"vendor:depositor",
+	"technic:copper_chest",
+	"technic:copper_locked_chest",
+	"technic:gold_chest",
+	"technic:gold_locked_chest",
+	"technic:iron_chest",
+	"technic:iron_locked_chest",
+	"technic:mithril_chest",
+	"technic:mithril_locked_chest",
+	"technic:silver_chest",
+	"technic:silver_locked_chest"
 }
 
 vendor.formspec = function(pos, player)
+	local meta = minetest.env:get_meta(pos)
 	local meta = minetest.env:get_meta(pos)
 	local node = minetest.env:get_node(pos)
 	local description = minetest.registered_nodes[node.name].description;
@@ -36,8 +47,10 @@ vendor.formspec = function(pos, player)
 	local number = meta:get_int("number")
 	local cost = meta:get_int("cost")
 	local limit = meta:get_int("limit")
+	local shop = meta:get_string("shop") or "Shop Name"
 	local formspec = "size[9,7;]"
 		.."label[0,0;Configure " .. description .. "]"
+		.."field[4,0;4,1;shop;;"..shop.."]"
 		.."field[2,1.5;2,1;number;Count:;" .. number .. "]"
 		.."label[4,1.25;How many to bundle together]"
 		.."field[2,3.0;2,1;cost;Price:;" .. cost .. "]"
@@ -57,6 +70,7 @@ vendor.after_place_node = function(pos, placer)
 	meta:set_int("cost", 0)
 	meta:set_int("limit", 0)
 	meta:set_string("owner", placer:get_player_name() or "")
+	meta:set_string("shop","")
 	meta:set_string("formspec", vendor.formspec(pos, placer))
 	local description = minetest.registered_nodes[minetest.env:get_node(pos).name].description;
 	vendor.disable(pos, "New " .. description)
@@ -85,6 +99,11 @@ vendor.on_receive_fields = function(pos, formname, fields, sender)
 	local number = tonumber(fields.number)
 	local cost = tonumber(fields.cost)
 	local limit = tonumber(fields.limit)
+	local shop = fields.shop
+
+	if ( shop == "Shop Name" ) then
+		shop = ""
+	end
 
 	if ( number == nil or number < 1 or number > 99) then
 		minetest.chat_send_player(owner, "vendor: Invalid count.  You must enter a count between 1 and 99.")
@@ -124,6 +143,7 @@ vendor.on_receive_fields = function(pos, formname, fields, sender)
 	meta:set_int("cost", cost)
 	meta:set_int("limit", limit)
 	meta:set_int("enabled", 1)
+	meta:set_string("shop",shop)
 	meta:set_string("formspec", vendor.formspec(pos, sender))
 
 	local buysell = "selling"
@@ -192,6 +212,10 @@ vendor.refresh = function(pos, err)
 	if ( meta:get_string("infotext") ~= infotext ) then
 		meta:set_string("infotext", infotext)
 	end
+
+	-- Update the formspec
+	meta:set_string("formspec", vendor.formspec(pos, sender))
+
 end
 
 vendor.sound_activate = function(pos)
@@ -232,12 +256,27 @@ vendor.on_punch = function(pos, node, player)
 
 	local player_name = player:get_player_name()
 
+	local tax = 0
 	local itemtype = meta:get_string("itemtype")
 	local number = meta:get_int("number")
 	local cost = meta:get_int("cost")
 	local owner = meta:get_string("owner")
 	local limit = meta:get_int("limit")
 	local enabled = meta:get_int("enabled")
+	local shop = meta:get_string("shop")
+
+	if ( shop == "" ) then
+		shop = minetest.pos_to_string(pos)
+	end
+
+	local land_owner = landrush.get_owner(pos)
+	if ( land_owner ~= nil and land_owner ~= owner and owner ~= player_name and cost > 10 ) then
+		tax = math.floor( cost * vendor.tax )
+		if ( tax < 1 ) then
+			tax = 1
+		end
+		cost = cost - tax
+	end
 
 	if not money.has_credit(player_name) then
 		minetest.chat_send_player(player_name, "vendor: You don't have credit ('money' privilege).")
@@ -260,6 +299,9 @@ vendor.on_punch = function(pos, node, player)
 	if ( chest_inv == nil ) then
 		if ( vending ) then
 			vendor.refresh(pos, "Out of Inventory");
+			if ( chatplus ) then
+				table.insert(chatplus.players[owner].messages,"mail from <Vendor>: Vending Machine at "..shop.." selling "..itemtype.." is out of stock!")
+			end
 		else
 			vendor.refresh(pos, "Storage is Full");
 		end
@@ -306,15 +348,23 @@ vendor.on_punch = function(pos, node, player)
 		return
 	end
 
+	-- do the tax transfer
+	if ( tax > 0 ) then
+		vendor_log_queue(land_owner,{date=os.date("%m/%d/%Y %H:%M"),pos=shop,from=from_account,action="Tax",qty=tostring(number),desc="Tax on "..itemtype,amount=tax})
+		money.transfer(from_account,land_owner,tax)
+	end
+
 	from_inv:remove_item("main", itemtype .. " " .. number)
 	to_inv:add_item("main", itemtype .. " " .. number)
 
 	if ( vending ) then
-		minetest.chat_send_player(player_name, "vendor: You bought " .. number .." " .. vendor.get_item_desc(itemtype) .. " from " .. owner .. " for " .. cost .. money.currency_name)
+		minetest.chat_send_player(player_name, "vendor: You bought " .. number .." " .. vendor.get_item_desc(itemtype) .. " from " .. owner .. " for " .. (cost+tax) .. money.currency_name)
 		vendor.sound_vend(pos)
+		vendor_log_queue(to_account,{date=os.date("%m/%d/%Y %H:%M"),pos=shop,from=from_account,action="Sale",qty=tostring(number),desc=itemtype,amount=cost})
 	else
 		minetest.chat_send_player(player_name, "vendor: You sold " .. number .. " " .. vendor.get_item_desc(itemtype) .. " to " .. owner .. " for " .. cost .. money.currency_name)
 		vendor.sound_deposit(pos)
+		vendor_log_queue(from_account,{date=os.date("%m/%d/%Y %H:%M"),pos=shop,from=to_account,action="Purch",qty=tostring(number),desc=itemtype,amount=(cost*-1)})
 	end
 
 
@@ -340,36 +390,34 @@ vendor.get_item_desc = function(nodetype)
 end
 
 
-vendor.is_traversable = function(pos, name)
-    local node = minetest.env:get_node_or_nil(pos)
-    if ( node == nil ) then
-        return false
-    end
-    for i=1,#vendor.traversable_node_types do
-        if (node.name == vendor.traversable_node_types[i] and node.name ~= name) then
-            return true
-        end
-    end
-    return false
+vendor.is_traversable = function(pos)
+	local node = minetest.env:get_node_or_nil(pos)
+	if ( node == nil ) then
+		return false
+	end
+	for i=1,#vendor.traversable_node_types do
+		if node.name == vendor.traversable_node_types[i] then
+			return true
+		end
+	end
+	return false
 end
 
 vendor.neighboring_nodes = function(pos)
-    local node = minetest.env:get_node_or_nil(pos)
-    local check = {{x=pos.x+1, y=pos.y, z=pos.z},
-        {x=pos.x-1, y=pos.y, z=pos.z},
-        {x=pos.x, y=pos.y+1, z=pos.z},
-        {x=pos.x, y=pos.y-1, z=pos.z},
-        {x=pos.x, y=pos.y, z=pos.z+1},
-        {x=pos.x, y=pos.y, z=pos.z-1}}
-    local trav = {}
-    for i=1,#check do
-        if vendor.is_traversable(check[i], node.name) then
-            trav[#trav+1] = check[i]
-        end
-    end
-    return trav
+	local check = {{x=pos.x+1, y=pos.y, z=pos.z},
+		{x=pos.x-1, y=pos.y, z=pos.z},
+		{x=pos.x, y=pos.y+1, z=pos.z},
+		{x=pos.x, y=pos.y-1, z=pos.z},
+		{x=pos.x, y=pos.y, z=pos.z+1},
+		{x=pos.x, y=pos.y, z=pos.z-1}}
+	local trav = {}
+	for i=1,#check do
+		if vendor.is_traversable(check[i]) then
+			trav[#trav+1] = check[i]
+		end
+	end
+	return trav
 end
-
 vendor.find_connected_chest_inv = function(owner, pos, nodename, amount, removing)
 	local nodes = vendor.neighboring_nodes(pos)
 
@@ -417,9 +465,21 @@ vendor.find_chest_inv = function(owner, pos, dx, dy, dz, nodename, amount, remov
 		return nil
 	end
 	--node.name == "default:chest" or
-	if ( node.name == "default:chest_locked") then
+	if ( node.name == "default:chest_locked"
+	  or node.name == "default:chest"
+	  or node.name == "technic:copper_chest"
+	  or node.name == "technic:copper_locked_chest"
+	  or node.name == "technic:gold_chest"
+	  or node.name == "technic:gold_locked_chest"
+	  or node.name == "technic:iron_chest"
+	  or node.name == "technic:iron_locked_chest"
+	  or node.name == "technic:mithril_chest"
+	  or node.name == "technic:mithril_locked_chest"
+	  or node.name == "technic:silver_chest"
+	  or node.name == "technic:silver_locked_chest"
+	  ) then
 		local meta = minetest.env:get_meta(pos)
-		if ( node.name == "default:chest_locked" and owner ~= meta:get_string("owner") ) then
+		if ( string.find(node.name,"_locked") ~= nil and owner ~= meta:get_string("owner") ) then
 			return nil
 		end
 		local inv = meta:get_inventory()
@@ -440,5 +500,4 @@ vendor.find_chest_inv = function(owner, pos, dx, dy, dz, nodename, amount, remov
 
 	return vendor.find_chest_inv(owner, pos, dx, dy, dz, nodename, amount, removing)
 end
-
 

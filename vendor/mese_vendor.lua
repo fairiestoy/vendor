@@ -7,6 +7,13 @@ to specific rooms only for example.
 
 -- New defined for the mesecon part
 
+--[[
+The next var indicates the amount ( in seconds ) after which the
+mesecon signal is turned off again. Maybe it has to be tuned
+a lot before it is useable enough for a specific purpose
+]]
+local TIME_SETTING = 2
+
 vendor.mese_formspec = function(pos, player)
 	local meta = minetest.env:get_meta(pos)
 	local node = minetest.env:get_node(pos)
@@ -107,6 +114,7 @@ vendor.mese_on_punch = function(pos, node, player)
 
 	local player_name = player:get_player_name()
 
+	local tax = 0
 	local cost = meta:get_int("cost")
 	local owner = meta:get_string("owner")
 	local limit = meta:get_int("limit")
@@ -135,6 +143,18 @@ vendor.mese_on_punch = function(pos, node, player)
 	to_account = owner
 	from_account = player_name
 
+	--[[
+	Do the tax check at this point
+	]]
+	local land_owner = landrush.get_owner(pos)
+	if ( land_owner ~= nil and land_owner ~= owner and owner ~= player_name and cost > 10 ) then
+		tax = math.floor( cost * vendor.tax )
+		if ( tax < 1 ) then
+			tax = 1
+		end
+		cost = cost - tax
+	end
+
 	local err = money.transfer(from_account, to_account, cost)
 	if ( err ~= nil ) then
 		minetest.chat_send_player(player_name, "mese_vendor: Credit transfer failed: " .. err)
@@ -142,13 +162,21 @@ vendor.mese_on_punch = function(pos, node, player)
 		return
 	end
 
-	minetest.chat_send_player(player_name, "mese_vendor: You bought a exclusive signal from " .. owner .. " for " .. cost .. money.currency_name)
+	-- do the tax transfer
+	if ( tax > 0 ) then
+		vendor_log_queue(land_owner,{date=os.date("%m/%d/%Y %H:%M"),pos=shop,from=from_account,action="Tax",qty=tostring(number),desc="Tax on "..itemtype,amount=tax})
+		money.transfer(from_account,land_owner,tax)
+	end
+
+	-- The informative part ;)
+	minetest.chat_send_player(player_name, "mese_vendor: You bought an exclusive signal from " .. owner .. " for " .. cost .. money.currency_name)
+	vendor_log_queue(to_account,{date=os.date("%m/%d/%Y %H:%M"),pos=shop,from=from_account,action="Sale",qty=tostring( 1 ),desc="MeseSignal",amount=cost})
 	vendor.sound_vend(pos)
 
 	-- Start the signal and abort after 2s (lag sensitive)
 	mesecon:swap_node(pos, 'vendor:signal_vendor_on')
 	mesecon:receptor_on(pos, mesecon.rules.buttonlike_get(node))
-	minetest.after(2, vendor.signal_vendor_turnoff, pos)
+	minetest.after( TIME_SETTING, vendor.signal_vendor_turnoff, pos)
 	-- end
 
 	if ( limit > 0 ) then

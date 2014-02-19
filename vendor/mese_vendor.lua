@@ -35,7 +35,6 @@ vendor.mese_formspec = function(pos, player)
 end
 
 vendor.mese_on_receive_fields = function(pos, formname, fields, sender)
-	print( 'Activated Formspec fields')
 	local node = minetest.env:get_node(pos)
 	local description = minetest.registered_nodes[node.name].description;
 	local meta = minetest.env:get_meta(pos)
@@ -58,8 +57,6 @@ vendor.mese_on_receive_fields = function(pos, formname, fields, sender)
 		vendor.disable(pos, "Misconfigured")
 		return
 	end
-
-	print( 'Reaches near the enabling')
 
 	meta:set_int("cost", cost)
 	meta:set_int("limit", limit)
@@ -164,17 +161,19 @@ vendor.mese_on_punch = function(pos, node, player)
 
 	-- do the tax transfer
 	if ( tax > 0 ) then
-		vendor_log_queue(land_owner,{date=os.date("%m/%d/%Y %H:%M"),pos=shop,from=from_account,action="Tax",qty=tostring(number),desc="Tax on "..itemtype,amount=tax})
+		vendor_log_queue(land_owner,{date=os.date("%m/%d/%Y %H:%M"),pos=minetest.pos_to_string(pos),from=from_account,action="Tax",qty=tostring(number),desc="Tax on "..itemtype,amount=tax})
 		money.transfer(from_account,land_owner,tax)
 	end
 
 	-- The informative part ;)
 	minetest.chat_send_player(player_name, "mese_vendor: You bought an exclusive signal from " .. owner .. " for " .. cost .. money.currency_name)
-	vendor_log_queue(to_account,{date=os.date("%m/%d/%Y %H:%M"),pos=shop,from=from_account,action="Sale",qty=tostring( 1 ),desc="MeseSignal",amount=cost})
+	vendor_log_queue(to_account,{date=os.date("%m/%d/%Y %H:%M"),pos=minetest.pos_to_string(pos),from=from_account,action="Sale",qty=tostring( 1 ),desc="MeseSignal",amount=cost})
 	vendor.sound_vend(pos)
 
 	-- Start the signal and abort after 2s (lag sensitive)
-	mesecon:swap_node(pos, 'vendor:signal_vendor_on')
+	local tmp_node = minetest.get_node( pos )
+	tmp_node.name = 'vendor:signal_vendor_on'
+	minetest.swap_node( pos, tmp_node )
 	mesecon:receptor_on(pos, mesecon.rules.buttonlike_get(node))
 	minetest.after( TIME_SETTING, vendor.signal_vendor_turnoff, pos)
 	-- end
@@ -193,7 +192,9 @@ end
 vendor.signal_vendor_turnoff = function (pos)
 	local node = minetest.env:get_node(pos)
 	if node.name=='vendor:signal_vendor_on' then --has not been dug
-		mesecon:swap_node(pos, 'vendor:signal_vendor_off')
+		local tmp_node = minetest.get_node( pos )
+		tmp_node.name = 'vendor:signal_vendor_off'
+		minetest.swap_node( pos, tmp_node )
 		local rules = mesecon.rules.buttonlike_get(node)
 		mesecon:receptor_off(pos, rules)
 	end

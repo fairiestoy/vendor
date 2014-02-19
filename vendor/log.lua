@@ -3,10 +3,9 @@ Merged changes for the Landrush mod.
 Code from Brandon Reese
 ]]
 
+vlog_queue = {}
 
 if( vendor.VENDOR_USE_LOGGING == true ) then
-	vlog_queue = {}
-
 	function vendor_log_queue(name,line)
 		if ( vlog_queue[name] == nil ) then
 			vlog_queue[name] = {}
@@ -38,4 +37,5 @@ else
 	function vendor_log_queue( foo, bar )
 		return
 	end
+	vlog_queue = nil
 end

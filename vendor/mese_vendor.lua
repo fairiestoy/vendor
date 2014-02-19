@@ -143,6 +143,7 @@ vendor.mese_on_punch = function(pos, node, player)
 	--[[
 	Do the tax check at this point
 	]]
+	local ocost = cost
 	local land_owner = landrush.get_owner(pos)
 	if ( land_owner ~= nil and land_owner ~= owner and owner ~= player_name and cost > 10 ) then
 		tax = math.floor( cost * vendor.tax )
@@ -161,12 +162,12 @@ vendor.mese_on_punch = function(pos, node, player)
 
 	-- do the tax transfer
 	if ( tax > 0 ) then
-		vendor_log_queue(land_owner,{date=os.date("%m/%d/%Y %H:%M"),pos=minetest.pos_to_string(pos),from=from_account,action="Tax",qty=tostring(number),desc="Tax on "..itemtype,amount=tax})
+		vendor_log_queue(land_owner,{date=os.date("%m/%d/%Y %H:%M"),pos=minetest.pos_to_string(pos),from=from_account,action="Tax",qty=tostring(number),desc="Tax on ".."MeseSignal",amount=tax})
 		money.transfer(from_account,land_owner,tax)
 	end
 
 	-- The informative part ;)
-	minetest.chat_send_player(player_name, "mese_vendor: You bought an exclusive signal from " .. owner .. " for " .. cost .. money.currency_name)
+	minetest.chat_send_player(player_name, "mese_vendor: You bought an exclusive signal from " .. owner .. " for " .. ocost .. money.currency_name)
 	vendor_log_queue(to_account,{date=os.date("%m/%d/%Y %H:%M"),pos=minetest.pos_to_string(pos),from=from_account,action="Sale",qty=tostring( 1 ),desc="MeseSignal",amount=cost})
 	vendor.sound_vend(pos)
 

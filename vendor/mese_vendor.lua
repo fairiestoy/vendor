@@ -241,3 +241,12 @@ minetest.register_node( 'vendor:signal_vendor_on', {
 		rules = mesecon.rules.buttonlike_get
 	}},
 	})
+
+minetest.register_craft({
+	output = 'vendor:signal_vendor_off',
+	recipe = {
+                {'default:wood', 'default:wood', 'default:wood'},
+                {'default:wood', 'default:steel_ingot', 'default:wood'},
+                {'default:wood', 'mesecons:wire_00000000_off', 'default:wood'},
+        }
+})
